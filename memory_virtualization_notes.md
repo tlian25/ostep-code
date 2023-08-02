@@ -138,5 +138,121 @@
 - free memory conceptually thought of as one big space of size 2^N
 - when request is made, search for free space recursively divides free space by two until a block that is big enough is found
 - can suffer from internal fragmentation as we only give out power-of-two sized blocks
-- when returning block to free list, allocator checks whether buddy is free, if so, it coalesces the two blocks into a larger block recursively
-- 
+- when returning block to free list, allocator checks whether buddy is free, if so, it coalesces the two blocks into a larger block recursively 
+
+
+
+
+## Paging
+
+- flexibility - system will be able to support the abstraction of an address space effectively, regardless of how a process uses the address space
+- simplicity - fixed sized chunks
+- for every memory reference, paging requires us to perform one extra memory reference in order to first fetch the translation from the page table
+
+
+#### Page Table
+- a per-process data structure to record where each virtual page of the address space is placed in physical memory
+- store address translations for each of the virtual pages of the address space
+- store page table in memory somewhere because it can get very large
+
+
+## Translation Lookaside Buffer (TLB)
+- part of chip's MMU
+- hardware cache of popular virtual-to-physical address translations
+- hardware first checks TLB to see if the desired translation is held
+- if so, the translation is performed quickly without having to consult the page table
+- misses can be handled by software or hardware
+- benefits of software are flexibility and simplicity
+- context switches - OS must be careful to ensure that the next process does not accidentally use translations from some previously run process
+- ASID - address space identifier, added field used to share TLB across context switches
+- TLB access can easily become a bottleneck in the CPU pipeline
+
+
+#### TLB Basic Algorithm
+1. extract the virtual page number from the virtual address and check if TLB holds translation for this VPN
+2a. If yes, we have a TLB hit and can extract the page frame number (PFN) from the relevant TLB entry, concat that onto the offeset from the original virtual address, and form the desired physical address
+2b. If no, we have a TLB miss and must look in the page table to find the translation and write back to TLB
+
+
+## Smaller Tables
+- tradeoff of internal fragmentation
+
+
+#### Combining paging and segments
+- one page table per logical segment
+- three page tables - code, heap, stack
+
+
+#### Multi-level page tables
+- turns linear page table into something like a tree
+- page directory to store where a page of the page table table is
+
+
+## Swap Space
+- reserve some space on disk for moving pages back and forth
+- OS will need to remember the disk address of a given page
+- present bit - 1 means page is present in physical memory, 0 means on disk somewhere
+- page fault - accessing a page that is not in physical memory
+- while I/O is in flight, the process will be in the blocked state
+- OS will be free to run other ready processes while the page fault is being serviced
+
+
+#### Replacement
+- High watermark and low watermark
+- when OS notices that there are fewer than LW pages available, a background thread runs to free memory and evict pages until there are HW pages available
+- called swap daemon or page daemon
+
+
+**Average Memory Access Time (AMAT)**
+- AMAT = T_M + (P_miss * T_D)
+- T_M = cost of accessing memory
+- T_D = cost of accessing disk
+- P_miss = probability of cache miss
+
+**Types of Cache Misses**
+- Compulsory - cold-start miss
+- Capacity - ran out of space and had to evict
+- Conflict - limits on where an item can be placed in hardware cache
+
+**Belady's Anomaly**
+- in general we expect cache hit rate to increase when cache gets larger
+- but with FIFO it gets worse
+
+#### Optimal Replacement Policy
+- leads to fewest number of misses overall
+- replace the page that will be acccessed furthest in the future
+- ideal but impossible to implement practically
+
+
+#### Practical Policies
+- FIFO - first in first out
+- LRU - least recently used
+- LFU - least frequently used
+- Random
+
+
+**Approximating LRU**
+- scan resistance - try to avoid worst-case behavior of LRU
+- use bit - set to 1 by hardware when a page is referenced
+- clock algorithm 
+    - loops through pages until finds one with use bit 0
+    - for all pages checked with use bit 1, clear bit to 0
+- dirty pages - consider whether a page has been modified or not while in memory
+    - if page modified, it must be written back to disk to evict, which is expensive
+    - prefer to evict clean pages over dirty pages
+    - needs a dirty bit to support
+
+
+#### Page selection policy
+- OS has to decide when to bring a page into memory
+- for most page, OS uses demand paging - on demand loading
+- OS could guess that a page is about to be used - prefetch
+
+
+#### Thrashing
+- when memory is oversubscribed
+- memory demands of the set of running processes simply exeeds the available physical memory
+- system will be constantly paging
+- mitigation
+    - admission control - reduce set of working processes
+    - out-of-memory kill - daemon chooses a memory-intensive process and kills it
