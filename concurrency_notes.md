@@ -42,3 +42,27 @@
 - don't fully understand this. need to spend some more time
 
 
+## Semaphores
+- object with an integer value that we can manipulate with two routines
+- sem_wait() - decrement value by one or wait if value is negative
+- sem_post() - increments the value of the semaphore, then if there is a thread waiting to be woken, wakes one of them up
+- when value of semaphore is negative, is equal to the number of waiting threads
+
+#### Binary Semaphores (Locks)
+- able to use semaphore as a lock if value = 1
+
+
+#### Semaphores for Ordering
+- example - parent thread creates a child thread and wants to wait for it to complete its execution
+- set value to 0
+- parent decrements value to -1 and waits
+- child runs to increment value to 0 and wake the parent
+
+## Event-based Concurrency
+- how to build concurrent server without using threads?
+- wait for an event to occur; when it does, check what type of event and do the small amount of work it requires
+- select() / poll()
+- no locks needed because only one event is being handled at a time
+- single threaded
+- problem of blocking system calls -> solution Async I/O
+- problem of state management -> continuation: record needed info to finish processing the event in some data strcuture, when even happens, look up needed info and process
